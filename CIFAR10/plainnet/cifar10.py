@@ -165,23 +165,30 @@ def inference(images):
   # If we only ran this model on a single GPU, we could simplify this function
   # by replacing all instances of tf.get_variable() with tf.Variable().
   #
-  # conv1
+
+  ##### LAYER1 - Convolutional-Pool-ReLU #####
+  ### conv1 ###
   with tf.variable_scope('conv1') as scope:
+    # Inititliaze (or get if initalized) height:5, width:5, channels:3, filters:64
     kernel = _variable_with_weight_decay('weights', shape=[5, 5, 3, 64],
                                          stddev=1e-4, wd=0.0)
-    conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
+    # calulate convolution for given image with given kernel
+    conv = tf.nn.conv2d(images, kernel, strides=[1, 1, 1, 1], padding='SAME')
+    # bias for each 64 filters
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
     bias = tf.nn.bias_add(conv, biases)
+    ### ReLU1 ###
     conv1 = tf.nn.relu(bias, name=scope.name)
     _activation_summary(conv1)
 
-  # pool1
+  ### pool1 ###
   pool1 = tf.nn.max_pool(conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
                          padding='SAME', name='pool1')
   # norm1
   norm1 = tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
                     name='norm1')
 
+  ##### LAYER2 - Convolutional-Pool-ReLU #####
   # conv2
   with tf.variable_scope('conv2') as scope:
     kernel = _variable_with_weight_decay('weights', shape=[5, 5, 64, 64],
@@ -199,6 +206,7 @@ def inference(images):
   pool2 = tf.nn.max_pool(norm2, ksize=[1, 3, 3, 1],
                          strides=[1, 2, 2, 1], padding='SAME', name='pool2')
 
+  ##### LAYER3 - Affine-ReLU #####
   # local3
   with tf.variable_scope('local3') as scope:
     # Move everything into depth so we can perform a single matrix multiply.
@@ -213,6 +221,7 @@ def inference(images):
     local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
     _activation_summary(local3)
 
+  ##### LAYER4 - Affine-ReLU #####
   # local4
   with tf.variable_scope('local4') as scope:
     weights = _variable_with_weight_decay('weights', shape=[384, 192],
@@ -221,6 +230,7 @@ def inference(images):
     local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
     _activation_summary(local4)
 
+  ##### LAYER5 - Affine-Softmax #####
   # softmax, i.e. softmax(WX + b)
   with tf.variable_scope('softmax_linear') as scope:
     weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES],
