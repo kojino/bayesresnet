@@ -27,7 +27,7 @@ Please see the tutorial and website for how to download the CIFAR-10
 data set, compile the program and train the model.
 http://tensorflow.org/tutorials/deep_cnn/
 """
-from __future__ import absolute_import
+# from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
@@ -39,7 +39,10 @@ import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
-from tensorflow.models.image.cifar10 import cifar10
+import sys
+sys.path.append("..")
+import cifar10
+# from tensorflow.models.image.cifar10 import cifar10
 
 # app is a simple wrapper that handles flag
 FLAGS = tf.app.flags.FLAGS
@@ -68,7 +71,7 @@ def train():
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    logits = cifar10.inference(images)
+    logits = cifar10.inference(images, keep_prob=FLAGS.keep_prob)
 
     # Calculate loss.
     loss = cifar10.loss(logits, labels)

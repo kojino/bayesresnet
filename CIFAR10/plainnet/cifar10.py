@@ -153,7 +153,7 @@ def inputs(eval_data):
                               batch_size=FLAGS.batch_size)
 
 
-def inference(images):
+def inference(images, keep_prob=None):
   """Build the CIFAR-10 model.
   Args:
     images: Images returned from distorted_inputs() or inputs().
@@ -229,6 +229,10 @@ def inference(images):
     biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
     local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
     _activation_summary(local4)
+    if keep_prob:
+        local4_drop = tf.nn.dropout(local, keep_prob)
+    else:
+        local4_drop = local4
 
   ##### LAYER5 - Affine-Softmax #####
   # softmax, i.e. softmax(WX + b)
@@ -237,7 +241,7 @@ def inference(images):
                                           stddev=1/192.0, wd=0.0)
     biases = _variable_on_cpu('biases', [NUM_CLASSES],
                               tf.constant_initializer(0.0))
-    softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
+    softmax_linear = tf.add(tf.matmul(local4_drop, weights), biases, name=scope.name)
     _activation_summary(softmax_linear)
 
   return softmax_linear
