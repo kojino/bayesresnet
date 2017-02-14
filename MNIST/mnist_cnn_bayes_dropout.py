@@ -30,6 +30,10 @@ def bias_variable(shape):
     initial = tf.constant(0.1, shape=shape)
     return tf.Variable(initial)
 
+def keep_prob_variable(shape,name):
+    initial = tf.constant(0.5, shape=shape)
+    return tf.Variable(initial,name=name)
+
 
 # In[5]:
 
@@ -78,21 +82,9 @@ h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
 # In[11]:
 
-is_train = tf.placeholder(tf.bool)
-
-def create_dropout_matrix():
-    means = tf.fill([1,1024], 0.5)
-    a = tf.select(tf.random_uniform([1, 1024])- means > 0, tf.ones([1,1024]), tf.zeros([1,1024]))
-    return tf.diag(a[0])
-
-def if_train():
-    return create_dropout_matrix()
-
-def if_not_train():
-    I_drop = create_dropout_matrix()
-    return tf.mul(I_drop,2.0)
-
-I_drop = tf.cond(is_train, if_train, if_not_train)
+keep_prob = keep_prob_variable([1,1024],"keep_prob")
+print(keep_prob)
+I_drop = tf.placeholder(tf.float32, shape=(1024, 1024))
 
 
 # In[12]:
@@ -104,7 +96,7 @@ b_fc2 = bias_variable([10])
 y_conv = tf.matmul(h_fc1, W_fc2_drop) + b_fc2
 
 
-# In[15]:
+# In[13]:
 
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv, y_))
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
@@ -113,21 +105,48 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 sess.run(tf.global_variables_initializer())
 
 
-# In[18]:
+# In[ ]:
+
+
+
+
+# In[24]:
 
 for i in range(20000):
     batch = mnist.train.next_batch(50)
+    
+    keep_prob_np = keep_prob.eval()
+    print(keep_prob_np[0])
+    
+    # prepare dropout matrix
+    train_drop_matrix = np.identity(1024)
+    s = np.random.binomial(1, keep_prob_np[0])
+    for j,el in enumerate(s):
+        if el == 0:
+            train_drop_matrix[j][j] = 0
     if i%100 == 0:
+        # identity * keep_prob for accuracy calculation
+        test_drop_matrix = np.identity(1024) * keep_prob_np
         train_accuracy = accuracy.eval(feed_dict={
-          x:batch[0], y_: batch[1], is_train: False})
+          x:batch[0], y_: batch[1], I_drop: test_drop_matrix})
         print("step %d, training accuracy %g"%(i, train_accuracy))
-    train_step.run(feed_dict={x: batch[0], y_: batch[1], is_train: True})
+    train_step.run(feed_dict={x: batch[0], y_: batch[1], I_drop: train_drop_matrix})
 
 
-# In[17]:
+# In[21]:
+
+np.random.binomial(1,[0.5,0.5])
+
+
+# In[15]:
 
 print("test accuracy %g"%accuracy.eval(feed_dict={
-    x: mnist.test.images, y_: mnist.test.labels, is_train: False}))
+    x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
+
+
+# In[25]:
+
+s = np.random.binomial(1, [0.2,0.3], 1)
 
 
 # In[ ]:
